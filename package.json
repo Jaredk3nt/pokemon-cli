@@ -1,0 +1,15 @@
+{
+  "name": "ptu-cli",
+  "version": "1.0.0",
+  "description": "CLI to control PTU characters and pokemon",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jared Jones",
+  "license": "ISC",
+  "dependencies": {
+    "jsonfile": "^4.0.0",
+    "vorpal": "^1.12.0"
+  }
+}
