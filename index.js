@@ -2,11 +2,15 @@ const vorpal = require('vorpal')();
 const chalk = vorpal.chalk;
 const pokedex = require('./pokedex.json');
 const data = require('./data.json');
-var jsonfile = require('jsonfile')
+var jsonfile = require('jsonfile');
 
 function writeData() {
-    var file = './data.json'
-    jsonfile.writeFile(file, data)
+    var file = './data.json';
+    jsonfile.writeFile(file, data);
+}
+
+function formatPokemonName(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 }
 
 function getHighestStat(stats) {
@@ -24,6 +28,16 @@ function getOrderedStats(stats) {
     return orderedIndices;
 }
 
+function addNature(pokemon) {
+    let nature = pokedex.natures[pokemon.nature];
+    pokemon.stats[0] += parseInt(nature.HP);
+    pokemon.stats[1] += parseInt(nature.ATK);
+    pokemon.stats[2] += parseInt(nature.DEF);
+    pokemon.stats[3] += parseInt(nature.SATK);
+    pokemon.stats[4] += parseInt(nature.SDEF);
+    pokemon.stats[5] += parseInt(nature.SPD);
+}
+
 function initialSkillLevel(pokemon) {
     let total = parseInt(pokemon.level) + 10; 
     let skillDiv = [.3, .25, .15, .1, .1, .1];
@@ -32,8 +46,7 @@ function initialSkillLevel(pokemon) {
     let runningTotal = total;
     // divide up stats
     for(let i = 0; i < pokemon.stats.length; i++) {
-        let upgrade = Math.floor(total * skillDiv[i])
-        console.log('giving index ' + orderedStats[i] + ' - ' + upgrade);
+        let upgrade = Math.floor(total * skillDiv[i]);
         pokemon.stats[orderedStats[i]] += upgrade;
         runningTotal -= upgrade;
         upgradeArr[orderedStats[i]] += upgrade;
@@ -56,52 +69,50 @@ function initialSkillLevel(pokemon) {
 // formatting for a pokemon's pokedex entry
 function formatPokedexEntry(entry) {
     let output = `
-    ${chalk.red('species')}: ${entry.Name}
+    ${chalk.blue('species')}: ${entry.Name}
     ${chalk.yellow('type')}: ${entry.Type1}   ${chalk.yellow('type 2')}: ${entry.Type2}
 
     ${chalk.grey('base stats')}:
     -----------
-    ${chalk.red('health')}     : ${entry.HP}
-    ${chalk.red('attack')}     : ${entry.Attack}
-    ${chalk.red('defense')}    : ${entry.Defense}
-    ${chalk.red('sp attack')}  : ${entry['Special Attack']}
-    ${chalk.red('sp defense')} : ${entry['Special Defense']}
-    ${chalk.red('speed')}      : ${entry.Speed}
+    ${chalk.blue('health')}     : ${entry.HP}
+    ${chalk.blue('attack')}     : ${entry.Attack}
+    ${chalk.blue('defense')}    : ${entry.Defense}
+    ${chalk.blue('sp attack')}  : ${entry['Special Attack']}
+    ${chalk.blue('sp defense')} : ${entry['Special Defense']}
+    ${chalk.blue('speed')}      : ${entry.Speed}
     `
     return output;
 }
 
 // formatting for an owned pokemon
 function formatPokemon(pokemon) {
+    let maxHealth = parseInt(pokemon.level) + (parseInt(pokemon.stats[0]) * 3) + 10;
     let output = `
-    ${chalk.red('name')}: ${pokemon.nickname}    ${chalk.red('lv')}: ${pokemon.level}
-    ${chalk.yellow('species')}: ${pokemon.Name}
+    ${chalk.blue('name')}: ${pokemon.nickname}    ${chalk.blue('lv')}: ${pokemon.level}
+    -----------
+    ${chalk.blue('species')}: ${pokemon.Name}    ${chalk.blue('nature')}: ${pokemon.nature}
     ${chalk.yellow('type')}: ${pokemon.Type1}    ${chalk.yellow('type 2')}: ${pokemon.Type2}
 
-    ${chalk.red('max HP')}: ${parseInt(pokemon.level) + (parseInt(pokemon.stats[0]) * 3) + 10}
+    ${chalk.blue('max HP')}: ${maxHealth}    ${chalk.blue('tick')}: ${Math.floor(maxHealth % 10)}
 
     ${chalk.grey('base stats')}:
     -----------
-    ${chalk.red('health')}     : ${pokemon.stats[0]}
-    ${chalk.red('attack')}     : ${pokemon.stats[1]}
-    ${chalk.red('defense')}    : ${pokemon.stats[2]}
-    ${chalk.red('sp attack')}  : ${pokemon.stats[3]}
-    ${chalk.red('sp defense')} : ${pokemon.stats[4]}
-    ${chalk.red('speed')}      : ${pokemon.stats[5]}
+    ${chalk.blue('health')}     : ${pokemon.stats[0]}
+    ${chalk.blue('attack')}     : ${pokemon.stats[1]}
+    ${chalk.blue('defense')}    : ${pokemon.stats[2]}
+    ${chalk.blue('sp attack')}  : ${pokemon.stats[3]}
+    ${chalk.blue('sp defense')} : ${pokemon.stats[4]}
+    ${chalk.blue('speed')}      : ${pokemon.stats[5]}
     `
     return output;
-}
-
-// uses the level and added stats to compute values
-function computeStats(pokemon) {
-
 }
 
 vorpal
     .command('pokedex [pokemon]', 'Outputs pokedex entry of pokemon.')
     .action( function(args, callback) {
-        if (args.pokemon in pokedex.pokemon) {
-            this.log(formatPokedexEntry(pokedex.pokemon[args.pokemon]));
+        let pokemon = formatPokemonName(args.pokemon);
+        if (pokemon in pokedex.pokemon) {
+            this.log(formatPokedexEntry(pokedex.pokemon[pokemon]));
         } else {
             this.log(chalk.yellow("That Pokemon doesn't exist!"));
         }
@@ -112,9 +123,14 @@ vorpal
     .command('pokemon [number]', 'Outputs your caught pokemon.')
     .action( function(args, callback) {
         if (args.number === undefined) {
-            for (let i = 0; i < data.pokemon.length; i++) {
-                this.log((i + 1) + '. ' + data.pokemon[i].Name + ' - lv.' + data.pokemon[i].level);
+            if (data.pokemon.length === 0) {
+                this.log(chalk.yellow("\n    You don't have any Pokemon!\n"));
+            } else {
+                for (let i = 0; i < data.pokemon.length; i++) {
+                    this.log((i + 1) + '. ' + data.pokemon[i].Name + ' - lv.' + data.pokemon[i].level);
+                }
             }
+            
         } else {
             if (args.number <= data.pokemon.length && args.number > 0) {
                 this.log(formatPokemon(data.pokemon[parseInt(args.number) - 1]));
@@ -127,11 +143,35 @@ vorpal
     });
 
 vorpal
+    .command('levelup [number]', 'Use when leveling one of your pokemon.')
+    .action( function(args, callback) {
+        if (args.number <= data.pokemon.length && args.number > 0) {
+            let pokemon = data.pokemon[args.number - 1];
+            const self = this;
+            const choices = ['hp', 'attack', 'defense', 'special attack', 'special defense', 'speed'];
+            this.prompt({ type: 'list', name: 'stat', message: 'What stat do you want to upgrade?', choices: choices})
+                .then( function(result) {
+                    let index = choices.indexOf(result.stat);
+                    pokemon.level++;
+                    pokemon.stats[index]++;
+                    self.log(`\n   ${chalk.blue(pokemon.nickname)} is now level ${chalk.blue(pokemon.level)}!\n`);
+                    writeData();
+                    callback();
+                })
+        } else {
+            this.log(chalk.yellow('Number out of range, make sure you are using the number of a pokemon you own!'));
+            callback();
+        }
+        
+    });
+
+vorpal
     .command('catch [pokemon]', 'Prompts to store new caught pokemon.')
     .action( function(args, callback) {
-        if (args.pokemon in pokedex.pokemon) {
+        let pName = formatPokemonName(args.pokemon);
+        if (pName in pokedex.pokemon) {
             const self = this;
-            let pokemon = pokedex.pokemon[args.pokemon];
+            let pokemon = Object.assign({}, pokedex.pokemon[pName]);
             this.prompt({ type: 'input', name: 'level', message: 'What level is this Pokemon? '})
                 .then( function(result) {
                     pokemon.level = result.level
@@ -146,8 +186,12 @@ vorpal
 
                             self.prompt({ type: 'input', name: 'nature', message: "What is this Pokemon's nature? "})
                                 .then( function(result) {
-
-                                    pokemon.nature = result.nature;
+                                    if (result.nature in pokedex.natures) {
+                                        pokemon.nature = result.nature;
+                                    } else {
+                                        self.log(chalk.yellow("That's not a valid nature!"));
+                                        callback();
+                                    }
 
                                     self.log(`\n    species: ${pokemon.Name}\n    nickname: ${pokemon.nickname}\n    nature: ${pokemon.nature}\n    level: ${pokemon.level}\n`);
                                     
@@ -163,8 +207,9 @@ vorpal
                                                     parseInt(pokemon['Special Defense']),
                                                     parseInt(pokemon.Speed)
                                                 ]
+                                                addNature(pokemon);
                                                 initialSkillLevel(pokemon);
-                                                self.log(pokemon.stats);
+                                                // Save the caught pokemon
                                                 data.pokemon.push(pokemon);
                                                 writeData();
                                                 self.log(`${pokemon.Name} caught!`)
