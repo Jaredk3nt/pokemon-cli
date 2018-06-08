@@ -93,7 +93,7 @@ function formatPokemon(pokemon) {
     ${chalk.blue('species')}: ${pokemon.Name}    ${chalk.blue('nature')}: ${pokemon.nature}
     ${chalk.yellow('type')}: ${pokemon.Type1}    ${chalk.yellow('type 2')}: ${pokemon.Type2}
 
-    ${chalk.blue('max HP')}: ${maxHealth}    ${chalk.blue('tick')}: ${Math.floor(maxHealth % 10)}
+    ${chalk.blue('max HP')}: ${maxHealth}    ${chalk.blue('tick')}: ${Math.floor(max Health % 10)}
 
     ${chalk.grey('base stats')}:
     -----------
